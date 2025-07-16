@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Digital Asset Manager</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        .modal { display: none; position: fixed; z-index: 50; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center; padding: 1rem; }
+        .modal.active { display: flex; }
+        .folder-nav { overflow-y: auto; max-height: calc(100vh - 64px); }
+        .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; }
+        @media (max-width: 768px) {
+            .folder-structure { position: fixed; top: 64px; left: 0; width: 80%; max-width: 320px; height: calc(100vh - 64px); z-index: 40; transform: translateX(-100%); transition: transform 0.3s ease-in-out; box-shadow: 0 0 15px rgba(0,0,0,0.1); background-color: #fff; }
+            .mobile-menu-active .folder-structure { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col overflow-hidden font-sans">
+    
+    <header class="bg-white border-b border-gray-200 px-4 py-3 flex items-center shrink-0">
+        <div class="flex items-center">
+             <svg class="h-8 w-8 text-blue-600 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" fill="currentColor"/><path d="M14 17H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"/></svg>
+            <div class="text-lg font-medium text-gray-900 hidden md:block">Restaurant DAM</div>
+        </div>
+        <div class="flex-grow mx-4">
+            <div class="relative"><input type="text" id="search-input" placeholder="Search assets..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <button id="upload-btn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">Upload</button>
+            <button id="mobile-menu-btn" class="md:hidden p-1"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <div class="folder-structure w-60 border-r border-gray-200 flex-col md:flex">
+            <nav class="folder-nav flex-1 p-4"><ul id="main-folders"></ul></nav>
+        </div>
+        
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <div class="bg-white p-4 border-b border-gray-200 flex items-center shrink-0">
+                <div id="current-folder-path" class="text-lg font-medium text-gray-800">All Assets</div>
+                <div class="ml-auto"><button id="delete-btn" class="px-3 py-1.5 rounded-md text-sm bg-red-500 text-white" disabled>Delete</button></div>
+            </div>
+            <div id="asset-container" class="flex-1 overflow-y-auto p-6 bg-gray-50">
+                <div id="empty-state" class="text-center py-12 hidden">
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No Assets</h3>
+                    <p class="mt-1 text-sm text-gray-500">This folder is empty.</p>
+                </div>
+                <div id="grid-view" class="asset-grid"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="upload-modal" class="modal"><div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg"><h3 class="text-lg font-medium mb-4">Upload New Asset</h3><input type="text" id="asset-name" placeholder="Asset Name" class="w-full p-2 border rounded mb-4"><div class="flex justify-end gap-2"><button id="cancel-upload-btn" class="px-4 py-2 bg-gray-200 rounded">Cancel</button><button id="confirm-upload-btn" class="px-4 py-2 bg-blue-600 text-white rounded">Confirm</button></div></div></div>
+    <div id="status-message" class="fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white hidden"></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const config = { storageKey: 'restaurantDamAssets' };
+    const mainFolders = [{ id: 'brand', name: 'Brand Assets' }, { id: 'menus', name: 'Menus' }, { id: 'marketing', name: 'Marketing' }];
+    let assets = [];
+    let state = { activeFolder: null, selectedAssets: [] };
+
+    const elements = {
+        mainFoldersList: document.getElementById('main-folders'),
+        currentFolderPath: document.getElementById('current-folder-path'),
+        gridView: document.getElementById('grid-view'),
+        emptyState: document.getElementById('empty-state'),
+        deleteBtn: document.getElementById('delete-btn'),
+        uploadBtn: document.getElementById('upload-btn'),
+        uploadModal: document.getElementById('upload-modal'),
+        assetNameInput: document.getElementById('asset-name'),
+        confirmUploadBtn: document.getElementById('confirm-upload-btn'),
+        cancelUploadBtn: document.getElementById('cancel-upload-btn'),
+        statusMessage: document.getElementById('status-message'),
+        mobileMenuBtn: document.getElementById('mobile-menu-btn'),
+        body: document.body
+    };
+
+    function saveAssets() {
+        try {
+            localStorage.setItem(config.storageKey, JSON.stringify(assets));
+        } catch (e) {
+            console.error("Error saving assets:", e);
+        }
+    }
+
+    function loadAssets() {
+        try {
+            const storedAssets = localStorage.getItem(config.storageKey);
+            assets = storedAssets ? JSON.parse(storedAssets) : [];
+        } catch (e) {
+            console.error("Error loading assets:", e);
+            assets = [];
+        }
+    }
+
+    function showStatus(message, type = 'success') {
+        elements.statusMessage.textContent = message;
+        elements.statusMessage.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white ${type === 'error' ? 'bg-red-600' : 'bg-green-600'}`;
+        elements.statusMessage.classList.remove('hidden');
+        setTimeout(() => elements.statusMessage.classList.add('hidden'), 3000);
+    }
+
+    function renderMainFolders() {
+        elements.mainFoldersList.innerHTML = mainFolders.map(f => `
+            <li><button data-folder-id="${f.id}" class="w-full text-left p-2 rounded ${state.activeFolder === f.id ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}">${f.name}</button></li>
+        `).join('');
+    }
+
+    function renderAssets() {
+        const filtered = state.activeFolder ? assets.filter(a => a.folder === state.activeFolder) : assets;
+        elements.emptyState.classList.toggle('hidden', filtered.length > 0);
+        elements.gridView.classList.toggle('hidden', filtered.length === 0);
+        elements.gridView.innerHTML = filtered.map(a => `
+            <div class="bg-white rounded-lg shadow-sm border overflow-hidden cursor-pointer ${state.selectedAssets.includes(a.id) ? 'ring-2 ring-blue-500' : ''}" data-asset-id="${a.id}">
+                <div class="h-32 bg-gray-200 flex items-center justify-center text-gray-500">${a.type === 'image' ? `<img src="${a.thumbnail}" class="h-full w-full object-cover">` : '📄'}</div>
+                <div class="p-3"><p class="font-medium text-sm truncate">${a.name}</p></div>
+            </div>
+        `).join('');
+        elements.deleteBtn.disabled = state.selectedAssets.length === 0;
+    }
+
+    function updateView() {
+        renderMainFolders();
+        renderAssets();
+        const activeFolderName = state.activeFolder ? mainFolders.find(f => f.id === state.activeFolder).name : 'All Assets';
+        elements.currentFolderPath.textContent = activeFolderName;
+    }
+
+    function handleFolderClick(e) {
+        if (e.target.matches('[data-folder-id]')) {
+            const folderId = e.target.dataset.folderId;
+            state.activeFolder = state.activeFolder === folderId ? null : folderId;
+            state.selectedAssets = [];
+            updateView();
+        }
+    }
+
+    function handleAssetClick(e) {
+        if (e.target.closest('[data-asset-id]')) {
+            const assetId = e.target.closest('[data-asset-id]').dataset.assetId;
+            const index = state.selectedAssets.indexOf(assetId);
+            if (index > -1) {
+                state.selectedAssets.splice(index, 1);
+            } else {
+                state.selectedAssets.push(assetId);
+            }
+            renderAssets();
+        }
+    }
+
+    function deleteSelectedAssets() {
+        assets = assets.filter(a => !state.selectedAssets.includes(a.id));
+        showStatus(`${state.selectedAssets.length} asset(s) deleted.`, 'success');
+        state.selectedAssets = [];
+        saveAssets();
+        updateView();
+    }
+
+    function uploadAsset() {
+        const name = elements.assetNameInput.value.trim();
+        if (!name) return;
+        if (!state.activeFolder) {
+            showStatus("Please select a folder first.", "error");
+            return;
+        }
+        const newAsset = {
+            id: Date.now().toString(),
+            name: name,
+            folder: state.activeFolder,
+            type: 'image',
+            thumbnail: `https://via.placeholder.com/300/CCCCCC/FFFFFF?text=${name.substring(0,3)}`
+        };
+        assets.push(newAsset);
+        saveAssets();
+        updateView();
+        elements.uploadModal.classList.remove('active');
+        elements.assetNameInput.value = '';
+    }
+
+    elements.mainFoldersList.addEventListener('click', handleFolderClick);
+    elements.gridView.addEventListener('click', handleAssetClick);
+    elements.deleteBtn.addEventListener('click', deleteSelectedAssets);
+    elements.uploadBtn.addEventListener('click', () => elements.uploadModal.classList.add('active'));
+    elements.cancelUploadBtn.addEventListener('click', () => elements.uploadModal.classList.remove('active'));
+    elements.confirmUploadBtn.addEventListener('click', uploadAsset);
+    elements.mobileMenuBtn.addEventListener('click', () => elements.body.classList.toggle('mobile-menu-active'));
+
+    loadAssets();
+    updateView();
+});
+</script>
+</body>
+</html>
