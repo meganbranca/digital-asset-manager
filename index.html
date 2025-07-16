@@ -1,197 +1,1326 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Restaurant Digital Asset Manager</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <style>
-        body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-        .modal { display: none; position: fixed; z-index: 50; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center; padding: 1rem; }
-        .modal.active { display: flex; }
-        .folder-nav { overflow-y: auto; max-height: calc(100vh - 64px); }
-        .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; }
-        @media (max-width: 768px) {
-            .folder-structure { position: fixed; top: 64px; left: 0; width: 80%; max-width: 320px; height: calc(100vh - 64px); z-index: 40; transform: translateX(-100%); transition: transform 0.3s ease-in-out; box-shadow: 0 0 15px rgba(0,0,0,0.1); background-color: #fff; }
-            .mobile-menu-active .folder-structure { transform: translateX(0); }
-        }
-    </style>
-</head>
-<body class="bg-gray-100 h-screen flex flex-col overflow-hidden font-sans">
-    
-    <header class="bg-white border-b border-gray-200 px-4 py-3 flex items-center shrink-0">
-        <div class="flex items-center">
-             <svg class="h-8 w-8 text-blue-600 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" fill="currentColor"/><path d="M14 17H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"/></svg>
-            <div class="text-lg font-medium text-gray-900 hidden md:block">Restaurant DAM</div>
-        </div>
-        <div class="flex-grow mx-4">
-            <div class="relative"><input type="text" id="search-input" placeholder="Search assets..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
-        </div>
-        <div class="flex items-center space-x-4">
-            <button id="upload-btn" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">Upload</button>
-            <button id="mobile-menu-btn" class="md:hidden p-1"><svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
-        </div>
-    </header>
+import React, { useState, useEffect } from 'react';
 
-    <div class="flex flex-1 overflow-hidden">
-        <div class="folder-structure w-60 border-r border-gray-200 flex-col md:flex">
-            <nav class="folder-nav flex-1 p-4"><ul id="main-folders"></ul></nav>
+const RestaurantDAM = () => {
+  // Main folder structure
+  const mainFolders = [
+    { id: 'brand-assets', name: 'BRAND ASSETS', icon: 'palette' },
+    { id: 'menus', name: 'MENUS', icon: 'utensils' },
+    { id: 'menu-content', name: 'MENU CONTENT', icon: 'camera' },
+    { id: 'marketing-materials', name: 'MARKETING MATERIALS', icon: 'bullhorn' },
+    { id: 'digital-media', name: 'DIGITAL MEDIA', icon: 'image' },
+    { id: 'pos-resources', name: 'POS & SYSTEM RESOURCES', icon: 'credit-card' },
+    { id: 'customer-experience', name: 'CUSTOMER EXPERIENCE', icon: 'users' }
+  ];
+
+  // Subfolder structure for each main folder
+  const subFolders = {
+    'brand-assets': [
+      { id: 'logo-files', name: 'Logo Files', subfolders: ['Primary Logos', 'Secondary Marks', 'Logo Variations', 'Icons & Favicons'] },
+      { id: 'brand-guidelines', name: 'Brand Guidelines', subfolders: ['Color Palette', 'Typography', 'Brand Voice & Messaging'] },
+      { id: 'restaurant-identity', name: 'Restaurant Identity', subfolders: ['Exterior Photos', 'Interior Photos', 'Signage', 'Staff Uniforms'] }
+    ],
+    'menus': [
+      { id: 'current-menus', name: 'Current Menus', subfolders: ['Main Menu', 'Beverage Menu', 'Kids Menu', 'Dessert Menu'] },
+      { id: 'seasonal-menus', name: 'Seasonal Menus', subfolders: ['Spring', 'Summer', 'Fall', 'Winter'] },
+      { id: 'specialty-menus', name: 'Specialty Menus', subfolders: ['Happy Hour', 'Brunch', 'Catering', 'Private Events'] },
+      { id: 'digital-menu-files', name: 'Digital Menu Files', subfolders: ['PDF Menus', 'QR Code Menus', 'Online Ordering Menus'] },
+      { id: 'menu-archives', name: 'Menu Archives', subfolders: ['2025', '2024', '2023'] }
+    ],
+    'menu-content': [
+      { id: 'food-photography', name: 'Food Photography', subfolders: ['Appetizers', 'Main Courses', 'Desserts', 'Specials'] },
+      { id: 'menu-design-files', name: 'Menu Design Files', subfolders: ['Templates', 'Menu Backgrounds', 'Layout Files'] },
+      { id: 'menu-copy', name: 'Menu Copy', subfolders: ['Item Descriptions', 'Dietary Information', 'Ingredient Lists'] },
+      { id: 'beverage-program', name: 'Beverage Program', subfolders: ['Cocktail Photos', 'Wine List Content', 'Beer Program'] }
+    ],
+    'marketing-materials': [
+      { id: 'print-materials', name: 'Print Materials', subfolders: ['Flyers & Posters', 'Table Tents', 'Business Cards', 'Gift Cards'] },
+      { id: 'digital-campaigns', name: 'Digital Campaigns', subfolders: ['Email Templates', 'Banner Ads', 'Promotional Graphics'] },
+      { id: 'social-media-content', name: 'Social Media Content', subfolders: ['Facebook', 'Instagram', 'Twitter/X', 'TikTok', 'Content Calendar Templates'] },
+      { id: 'loyalty-rewards', name: 'Loyalty & Rewards', subfolders: ['Program Graphics', 'Membership Materials'] },
+      { id: 'seasonal-promotions', name: 'Seasonal Promotions', subfolders: ['Holiday Graphics', 'Seasonal Campaigns'] }
+    ],
+    'digital-media': [
+      { id: 'photography', name: 'Photography', subfolders: ['Food Gallery', 'Ambiance & Atmosphere', 'Staff & Team', 'Events & Gatherings'] },
+      { id: 'video-content', name: 'Video Content', subfolders: ['Promotional Videos', 'Behind-the-Scenes', 'Chef Interviews', 'Food Preparation'] },
+      { id: 'audio', name: 'Audio', subfolders: ['Restaurant Playlists', 'On-Hold Music', 'Radio Spots'] },
+      { id: 'stock-resources', name: 'Stock Resources', subfolders: ['Licensed Stock Photos', 'Purchased Templates', 'Font Files'] }
+    ],
+    'pos-resources': [
+      { id: 'microsale-assets', name: 'MicroSale Assets', subfolders: ['Button Icons', 'Screen Backgrounds', 'Custom Receipt Templates'] },
+      { id: 'digital-displays', name: 'Digital Displays', subfolders: ['Customer-Facing Display Content', 'Kitchen Display Graphics', 'Drive-thru Display Assets'] },
+      { id: 'online-ordering', name: 'Online Ordering', subfolders: ['BiteHeist Menu Photos', 'Item Descriptions', 'Delivery Zone Maps'] },
+      { id: 'qr-codes', name: 'QR Codes', subfolders: ['Menu QR Codes', 'Payment QR Codes', 'Feedback QR Codes'] }
+    ],
+    'customer-experience': [
+      { id: 'website-content', name: 'Website Content', subfolders: ['Homepage Assets', 'About Us Content', 'Location & Hours', 'Photo Gallery'] },
+      { id: 'customer-communication', name: 'Customer Communication', subfolders: ['Email Templates', 'SMS Templates', 'Feedback Forms'] },
+      { id: 'digital-menus', name: 'Digital Menus', subfolders: ['Online Menu PDFs', 'QR Menu Design', 'Interactive Menu Content'] },
+      { id: 'table-guest-touchpoints', name: 'Table/Guest Touchpoints', subfolders: ['Table Cards', 'Check Presenters', 'Guest Wifi Cards'] }
+    ]
+  };
+
+  // Sample asset types
+  const assetTypes = [
+    { id: 'image', name: 'Image', extensions: ['jpg', 'png', 'webp'] },
+    { id: 'document', name: 'Document', extensions: ['pdf', 'docx'] },
+    { id: 'design', name: 'Design File', extensions: ['psd', 'ai', 'sketch'] },
+    { id: 'video', name: 'Video', extensions: ['mp4', 'mov'] },
+    { id: 'audio', name: 'Audio', extensions: ['mp3', 'wav'] }
+  ];
+
+  // State management
+  const [activeFolder, setActiveFolder] = useState('brand-assets');
+  const [activeSubFolder, setActiveSubFolder] = useState(null);
+  const [activeDetailFolder, setActiveDetailFolder] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedAssets, setSelectedAssets] = useState([]);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showAssetDetailModal, setShowAssetDetailModal] = useState(false);
+  const [currentAsset, setCurrentAsset] = useState(null);
+  const [statusMessage, setStatusMessage] = useState(null);
+  const [sortBy, setSortBy] = useState('date'); // 'date', 'name', 'type'
+  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
+  const [uploadData, setUploadData] = useState({
+    name: '',
+    description: '',
+    type: 'image',
+    tags: '',
+    filePath: '',
+    folder: activeFolder,
+    subfolder: '',
+    detailFolder: ''
+  });
+
+  // Sample data for assets
+  const [assets, setAssets] = useState([
+    {
+      id: '1',
+      name: 'Primary Logo Full Color',
+      description: 'Main restaurant logo on white background',
+      type: 'image',
+      extension: 'png',
+      size: '2.4 MB',
+      dimensions: '2000 x 800 px',
+      path: '/BRAND ASSETS/Logo Files/Primary Logos/Primary_Logo_Full_Color.png',
+      folder: 'brand-assets',
+      subfolder: 'logo-files',
+      detailFolder: 'Primary Logos',
+      tags: ['logo', 'branding', 'primary'],
+      dateCreated: '2025-01-15',
+      dateModified: '2025-01-15',
+      thumbnail: 'https://via.placeholder.com/300/4F46E5/FFFFFF?text=LOGO',
+      createdBy: 'Brand Manager'
+    },
+    {
+      id: '2',
+      name: 'Menu Spring 2025',
+      description: 'Spring menu PDF for print and digital distribution',
+      type: 'document',
+      extension: 'pdf',
+      size: '3.8 MB',
+      path: '/MENUS/Seasonal Menus/Spring/Menu_Spring_2025.pdf',
+      folder: 'menus',
+      subfolder: 'seasonal-menus',
+      detailFolder: 'Spring',
+      tags: ['menu', 'spring', '2025', 'seasonal'],
+      dateCreated: '2025-03-01',
+      dateModified: '2025-03-05',
+      thumbnail: 'https://via.placeholder.com/300/DC2626/FFFFFF?text=PDF',
+      createdBy: 'Marketing Director'
+    },
+    {
+      id: '3',
+      name: 'Signature Burger Hero Shot',
+      description: 'High-res photograph of signature burger',
+      type: 'image',
+      extension: 'jpg',
+      size: '5.2 MB',
+      dimensions: '4000 x 3000 px',
+      path: '/MENU CONTENT/Food Photography/Main Courses/Signature_Burger_Hero.jpg',
+      folder: 'menu-content',
+      subfolder: 'food-photography',
+      detailFolder: 'Main Courses',
+      tags: ['food', 'burger', 'photography', 'hero image'],
+      dateCreated: '2025-02-10',
+      dateModified: '2025-02-10',
+      thumbnail: 'https://via.placeholder.com/300/065F46/FFFFFF?text=FOOD',
+      createdBy: 'Food Photographer'
+    },
+    {
+      id: '4',
+      name: 'Instagram Summer Promotion',
+      description: 'Promotional post for summer special menu',
+      type: 'image',
+      extension: 'jpg',
+      size: '1.8 MB',
+      dimensions: '1080 x 1080 px',
+      path: '/MARKETING MATERIALS/Social Media Content/Instagram/Summer_Promo_Post.jpg',
+      folder: 'marketing-materials',
+      subfolder: 'social-media-content',
+      detailFolder: 'Instagram',
+      tags: ['social media', 'instagram', 'summer', 'promotion'],
+      dateCreated: '2025-06-01',
+      dateModified: '2025-06-02',
+      thumbnail: 'https://via.placeholder.com/300/0284C7/FFFFFF?text=SOCIAL',
+      createdBy: 'Social Media Manager'
+    },
+    {
+      id: '5',
+      name: 'Chef Interview - Summer Menu',
+      description: 'Video interview with chef discussing summer menu items',
+      type: 'video',
+      extension: 'mp4',
+      size: '128 MB',
+      duration: '3:45',
+      path: '/DIGITAL MEDIA/Video Content/Chef Interviews/Chef_Summer_Menu_Interview.mp4',
+      folder: 'digital-media',
+      subfolder: 'video-content',
+      detailFolder: 'Chef Interviews',
+      tags: ['video', 'chef', 'interview', 'summer menu'],
+      dateCreated: '2025-05-15',
+      dateModified: '2025-05-18',
+      thumbnail: 'https://via.placeholder.com/300/7C3AED/FFFFFF?text=VIDEO',
+      createdBy: 'Content Producer'
+    },
+    {
+      id: '6',
+      name: 'POS Button Icons Set',
+      description: 'Full set of custom icons for MicroSale POS system',
+      type: 'design',
+      extension: 'ai',
+      size: '8.4 MB',
+      path: '/POS & SYSTEM RESOURCES/MicroSale Assets/Button Icons/POS_Button_Icons_Set.ai',
+      folder: 'pos-resources',
+      subfolder: 'microsale-assets',
+      detailFolder: 'Button Icons',
+      tags: ['pos', 'icons', 'microsale', 'buttons'],
+      dateCreated: '2025-01-30',
+      dateModified: '2025-02-05',
+      thumbnail: 'https://via.placeholder.com/300/EA580C/FFFFFF?text=ICONS',
+      createdBy: 'UI Designer'
+    },
+    {
+      id: '7',
+      name: 'Website Hero Banner',
+      description: 'Main hero image for restaurant website homepage',
+      type: 'image',
+      extension: 'jpg',
+      size: '4.6 MB',
+      dimensions: '2400 x 1200 px',
+      path: '/CUSTOMER EXPERIENCE/Website Content/Homepage Assets/Homepage_Hero_Banner.jpg',
+      folder: 'customer-experience',
+      subfolder: 'website-content',
+      detailFolder: 'Homepage Assets',
+      tags: ['website', 'hero', 'banner', 'homepage'],
+      dateCreated: '2025-04-10',
+      dateModified: '2025-04-12',
+      thumbnail: 'https://via.placeholder.com/300/2563EB/FFFFFF?text=WEB',
+      createdBy: 'Web Designer'
+    },
+    {
+      id: '8',
+      name: 'Brand Style Guide 2025',
+      description: 'Comprehensive brand guidelines document',
+      type: 'document',
+      extension: 'pdf',
+      size: '12.2 MB',
+      path: '/BRAND ASSETS/Brand Guidelines/Brand_Style_Guide_2025.pdf',
+      folder: 'brand-assets',
+      subfolder: 'brand-guidelines',
+      detailFolder: '',
+      tags: ['brand', 'guidelines', 'style guide'],
+      dateCreated: '2025-01-05',
+      dateModified: '2025-01-10',
+      thumbnail: 'https://via.placeholder.com/300/DC2626/FFFFFF?text=PDF',
+      createdBy: 'Brand Director'
+    }
+  ]);
+
+  // Load saved assets from localStorage on component mount
+  useEffect(() => {
+    try {
+      const savedAssets = localStorage.getItem('restaurantDamAssets');
+      if (savedAssets) {
+        setAssets(JSON.parse(savedAssets));
+      } else {
+        // If no saved assets, save the initial ones
+        localStorage.setItem('restaurantDamAssets', JSON.stringify(assets));
+      }
+    } catch (error) {
+      console.error('Error loading saved assets:', error);
+    }
+  }, []);
+
+  // Update localStorage whenever assets change
+  useEffect(() => {
+    try {
+      localStorage.setItem('restaurantDamAssets', JSON.stringify(assets));
+    } catch (error) {
+      console.error('Error saving assets:', error);
+    }
+  }, [assets]);
+
+  // Set the active subfolder when the main folder changes
+  useEffect(() => {
+    if (subFolders[activeFolder] && subFolders[activeFolder].length > 0) {
+      setActiveSubFolder(subFolders[activeFolder][0].id);
+      setActiveDetailFolder(null);
+    } else {
+      setActiveSubFolder(null);
+      setActiveDetailFolder(null);
+    }
+    
+    // Update upload data with current folder
+    setUploadData({
+      ...uploadData,
+      folder: activeFolder,
+      subfolder: '',
+      detailFolder: ''
+    });
+  }, [activeFolder]);
+
+  // Update active detail folder when subfolder changes
+  useEffect(() => {
+    if (activeSubFolder) {
+      const currentSubfolder = subFolders[activeFolder].find(sf => sf.id === activeSubFolder);
+      if (currentSubfolder && currentSubfolder.subfolders && currentSubfolder.subfolders.length > 0) {
+        setActiveDetailFolder(currentSubfolder.subfolders[0]);
+      } else {
+        setActiveDetailFolder(null);
+      }
+      
+      // Update upload data with current subfolder
+      setUploadData({
+        ...uploadData,
+        folder: activeFolder,
+        subfolder: activeSubFolder,
+        detailFolder: currentSubfolder?.subfolders?.[0] || ''
+      });
+    }
+  }, [activeSubFolder]);
+
+  // Get filtered and sorted assets
+  const getFilteredAssets = () => {
+    // Start with filtering by folder structure
+    let filtered = [...assets];
+    
+    if (activeFolder) {
+      filtered = filtered.filter(asset => asset.folder === activeFolder);
+      
+      if (activeSubFolder) {
+        filtered = filtered.filter(asset => asset.subfolder === activeSubFolder);
+        
+        if (activeDetailFolder) {
+          filtered = filtered.filter(asset => asset.detailFolder === activeDetailFolder);
+        }
+      }
+    }
+    
+    // Then filter by search term
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(asset => 
+        asset.name.toLowerCase().includes(search) ||
+        asset.description.toLowerCase().includes(search) ||
+        asset.tags.some(tag => tag.toLowerCase().includes(search))
+      );
+    }
+    
+    // Finally sort the results
+    filtered.sort((a, b) => {
+      if (sortBy === 'date') {
+        return sortOrder === 'asc' 
+          ? new Date(a.dateModified) - new Date(b.dateModified)
+          : new Date(b.dateModified) - new Date(a.dateModified);
+      } else if (sortBy === 'name') {
+        return sortOrder === 'asc'
+          ? a.name.localeCompare(b.name)
+          : b.name.localeCompare(a.name);
+      } else if (sortBy === 'type') {
+        return sortOrder === 'asc'
+          ? a.type.localeCompare(b.type)
+          : b.type.localeCompare(a.type);
+      }
+      return 0;
+    });
+    
+    return filtered;
+  };
+
+  const filteredAssets = getFilteredAssets();
+
+  // Show status message for a few seconds
+  const showStatus = (message, type = 'success') => {
+    setStatusMessage({ text: message, type });
+    setTimeout(() => setStatusMessage(null), 3000);
+  };
+
+  // Toggle asset selection
+  const toggleAssetSelection = (id) => {
+    if (selectedAssets.includes(id)) {
+      setSelectedAssets(selectedAssets.filter(assetId => assetId !== id));
+    } else {
+      setSelectedAssets([...selectedAssets, id]);
+    }
+  };
+
+  // Add a new asset
+  const handleUploadAsset = () => {
+    if (!uploadData.name || !uploadData.filePath) {
+      showStatus('Please provide both a name and file path', 'error');
+      return;
+    }
+    
+    const newId = (Math.max(...assets.map(a => parseInt(a.id) || 0)) + 1).toString();
+    
+    // Process tags from string to array
+    const tagsArray = uploadData.tags ? 
+      uploadData.tags.split(',').map(tag => tag.trim()) : 
+      [];
+    
+    // Extract filename and extension from path
+    const filename = uploadData.filePath.split(/[\/\\]/).pop();
+    const extension = filename.split('.').pop().toLowerCase();
+    
+    // Generate a thumbnail based on the asset type
+    let thumbnail;
+    switch(uploadData.type) {
+      case 'image':
+        thumbnail = 'https://via.placeholder.com/300/4F46E5/FFFFFF?text=IMG';
+        break;
+      case 'video':
+        thumbnail = 'https://via.placeholder.com/300/7C3AED/FFFFFF?text=VID';
+        break;
+      case 'document':
+        thumbnail = 'https://via.placeholder.com/300/DC2626/FFFFFF?text=DOC';
+        break;
+      case 'audio':
+        thumbnail = 'https://via.placeholder.com/300/EA580C/FFFFFF?text=AUD';
+        break;
+      case 'design':
+        thumbnail = 'https://via.placeholder.com/300/059669/FFFFFF?text=DESIGN';
+        break;
+      default:
+        thumbnail = 'https://via.placeholder.com/300/6B7280/FFFFFF?text=FILE';
+    }
+    
+    // Construct the full path
+    const folderName = mainFolders.find(f => f.id === uploadData.folder)?.name || '';
+    const subfolderName = subFolders[uploadData.folder]?.find(sf => sf.id === uploadData.subfolder)?.name || '';
+    const fullPath = `/${folderName}/${subfolderName}/${uploadData.detailFolder}/${filename}`;
+    
+    const assetToAdd = {
+      id: newId,
+      name: uploadData.name,
+      description: uploadData.description,
+      type: uploadData.type,
+      extension: extension,
+      size: '0 MB', // Would be calculated from actual file
+      path: fullPath,
+      folder: uploadData.folder,
+      subfolder: uploadData.subfolder,
+      detailFolder: uploadData.detailFolder,
+      tags: tagsArray,
+      dateCreated: new Date().toISOString().split('T')[0],
+      dateModified: new Date().toISOString().split('T')[0],
+      thumbnail: thumbnail,
+      createdBy: 'Current User'
+    };
+    
+    // Add dimensions if it's an image
+    if (uploadData.type === 'image') {
+      assetToAdd.dimensions = '1920 x 1080 px'; // Would be calculated from actual image
+    }
+    
+    // Add duration if it's a video or audio
+    if (uploadData.type === 'video' || uploadData.type === 'audio') {
+      assetToAdd.duration = '0:00'; // Would be calculated from actual file
+    }
+    
+    // Save to state
+    const updatedAssets = [...assets, assetToAdd];
+    setAssets(updatedAssets);
+    
+    // Reset form
+    setUploadData({
+      name: '',
+      description: '',
+      type: 'image',
+      tags: '',
+      filePath: '',
+      folder: activeFolder,
+      subfolder: activeSubFolder,
+      detailFolder: activeDetailFolder
+    });
+    
+    setShowUploadModal(false);
+    showStatus(`Asset "${assetToAdd.name}" has been added successfully`);
+  };
+
+  // Delete selected assets
+  const handleDeleteAssets = () => {
+    if (selectedAssets.length === 0) return;
+    
+    const updatedAssets = assets.filter(asset => !selectedAssets.includes(asset.id));
+    setAssets(updatedAssets);
+    showStatus(`${selectedAssets.length} asset(s) deleted successfully`);
+    setSelectedAssets([]);
+  };
+
+  // View asset details
+  const handleViewAsset = (asset) => {
+    setCurrentAsset(asset);
+    setShowAssetDetailModal(true);
+  };
+
+  // Render folder icon
+  const renderFolderIcon = (iconName) => {
+    switch(iconName) {
+      case 'palette':
+        return (
+          <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M4 2a2 2 0 00-2 2v11a3 3 0 106 0V4a2 2 0 00-2-2H4zm1 14a1 1 0 100-2 1 1 0 000 2zm5-1.757l4.9-4.9a2 2 0 000-2.828L13.485 5.1a2 2 0 00-2.828 0L10 5.757v8.486zM16 18H9.071l6-6H16a2 2 0 012 2v2a2 2 0 01-2 2z" clipRule="evenodd" />
+          </svg>
+        );
+      case 'utensils':
+        return (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        );
+      case 'camera':
+        return (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        );
+      case 'bullhorn':
+        return (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+          </svg>
+        );
+      case 'image':
+        return (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        );
+      case 'credit-card':
+        return (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+        );
+      case 'users':
+        return (
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        );
+      default:
+        return (
+          <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z" clipRule="evenodd" />
+            <path d="M6 12A2 2 0 018 10h8a2 2 0 012 2v5a2 2 0 01-2 2H8a2 2 0 01-2-2v-5z" />
+          </svg>
+        );
+    }
+  };
+
+  // Render file type icon
+  const renderFileTypeIcon = (fileType, extension) => {
+    switch(fileType) {
+      case 'image':
+        return (
+          <svg className="h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        );
+      case 'document':
+        return (
+          <svg className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+        );
+      case 'video':
+        return (
+          <svg className="h-8 w-8 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+        );
+      case 'audio':
+        return (
+          <svg className="h-8 w-8 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+          </svg>
+        );
+      case 'design':
+        return (
+          <svg className="h-8 w-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+          </svg>
+        );
+      default:
+        return (
+          <svg className="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        );
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center">
+        <div className="flex items-center">
+          <svg className="h-8 w-8 text-blue-600 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" fill="currentColor"/>
+            <path d="M14 17H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" fill="currentColor"/>
+          </svg>
+          <div className="text-lg font-medium text-gray-900">Restaurant Digital Asset Manager</div>
+        </div>
+        <div className="flex-grow mx-4">
+          <div className="relative">
+            <input 
+              type="text" 
+              placeholder="Search assets by name, description or tags" 
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <button className="absolute right-2 top-2 text-gray-500">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center space-x-4">
+          <button 
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            onClick={() => setShowUploadModal(true)}
+          >
+            <svg className="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+            </svg>
+            Upload
+          </button>
+          <div className="h-8 w-8 bg-blue-600 rounded-full text-white flex items-center justify-center font-bold">
+            U
+          </div>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Main navigation */}
+        <div className="w-48 bg-white border-r border-gray-200 flex flex-col">
+          <nav className="flex-1 pt-3 pb-4 overflow-y-auto">
+            <div className="px-3 mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Main Categories
+            </div>
+            <ul className="mt-2 mb-3">
+              {mainFolders.map((folder) => (
+                <li key={folder.id}>
+                  <button
+                    className={`flex items-center px-3 py-2 text-sm rounded-md w-full ${
+                      activeFolder === folder.id 
+                        ? 'bg-blue-100 text-blue-700' 
+                        : 'text-gray-700 hover:bg-gray-100'
+                    }`}
+                    onClick={() => setActiveFolder(folder.id)}
+                  >
+                    <span className="mr-2 text-gray-500">
+                      {renderFolderIcon(folder.icon)}
+                    </span>
+                    <span className="truncate">{folder.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
         </div>
         
-        <main class="flex-1 flex flex-col overflow-hidden">
-            <div class="bg-white p-4 border-b border-gray-200 flex items-center shrink-0">
-                <div id="current-folder-path" class="text-lg font-medium text-gray-800">All Assets</div>
-                <div class="ml-auto"><button id="delete-btn" class="px-3 py-1.5 rounded-md text-sm bg-red-500 text-white" disabled>Delete</button></div>
+        {/* Subfolder navigation */}
+        {activeFolder && (
+          <div className="w-56 bg-gray-50 border-r border-gray-200 flex flex-col">
+            <div className="h-12 flex items-center px-4 border-b border-gray-200">
+              <h2 className="text-sm font-medium text-gray-900">
+                {mainFolders.find(f => f.id === activeFolder)?.name}
+              </h2>
             </div>
-            <div id="asset-container" class="flex-1 overflow-y-auto p-6 bg-gray-50">
-                <div id="empty-state" class="text-center py-12 hidden">
-                    <h3 class="mt-2 text-sm font-medium text-gray-900">No Assets</h3>
-                    <p class="mt-1 text-sm text-gray-500">This folder is empty.</p>
+            <nav className="flex-1 pt-3 pb-4 overflow-y-auto">
+              <ul className="mt-2 mb-3">
+                {subFolders[activeFolder]?.map((subfolder) => (
+                  <li key={subfolder.id}>
+                    <button
+                      className={`flex items-center px-3 py-2 text-sm rounded-md w-full ${
+                        activeSubFolder === subfolder.id 
+                          ? 'bg-blue-100 text-blue-700' 
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                      onClick={() => setActiveSubFolder(subfolder.id)}
+                    >
+                      <svg className="h-4 w-4 mr-2 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z" clipRule="evenodd" />
+                        <path d="M6 12A2 2 0 018 10h8a2 2 0 012 2v5a2 2 0 01-2 2H8a2 2 0 01-2-2v-5z" />
+                      </svg>
+                      <span className="truncate">{subfolder.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
+        )}
+        
+        {/* Detail folder navigation */}
+        {activeSubFolder && (
+          <div className="w-48 bg-gray-50 border-r border-gray-200 flex flex-col">
+            <div className="h-12 flex items-center px-4 border-b border-gray-200">
+              <h2 className="text-sm font-medium text-gray-900">
+                {subFolders[activeFolder]?.find(sf => sf.id === activeSubFolder)?.name}
+              </h2>
+            </div>
+            <nav className="flex-1 pt-3 pb-4 overflow-y-auto">
+              <ul className="mt-2 mb-3">
+                {subFolders[activeFolder]?.find(sf => sf.id === activeSubFolder)?.subfolders?.map((detailFolder) => (
+                  <li key={detailFolder}>
+                    <button
+                      className={`flex items-center px-3 py-2 text-sm rounded-md w-full ${
+                        activeDetailFolder === detailFolder 
+                          ? 'bg-blue-100 text-blue-700' 
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                      onClick={() => setActiveDetailFolder(detailFolder)}
+                    >
+                      <svg className="h-4 w-4 mr-2 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1H8a3 3 0 00-3 3v1.5a1.5 1.5 0 01-3 0V6z" clipRule="evenodd" />
+                        <path d="M6 12A2 2 0 018 10h8a2 2 0 012 2v5a2 2 0 01-2 2H8a2 2 0 01-2-2v-5z" />
+                      </svg>
+                      <span className="truncate">{detailFolder}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
+        )}
+
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Action toolbar */}
+          <div className="bg-white p-4 border-b border-gray-200 flex items-center">
+            <div className="text-lg font-medium text-gray-800">
+              {activeDetailFolder ? activeDetailFolder : 
+               activeSubFolder ? subFolders[activeFolder]?.find(sf => sf.id === activeSubFolder)?.name : 
+               activeFolder ? mainFolders.find(f => f.id === activeFolder)?.name : 
+               'All Assets'}
+            </div>
+            <div className="ml-auto flex space-x-3">
+              <div className="flex border border-gray-300 rounded-md">
+                <button
+                  className={`px-3 py-1.5 ${viewMode === 'grid' ? 'bg-gray-100 text-gray-800' : 'text-gray-600'}`}
+                  onClick={() => setViewMode('grid')}
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                  </svg>
+                </button>
+                <button
+                  className={`px-3 py-1.5 ${viewMode === 'list' ? 'bg-gray-100 text-gray-800' : 'text-gray-600'}`}
+                  onClick={() => setViewMode('list')}
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                  </svg>
+                </button>
+              </div>
+              
+              <select
+                className="px-3 py-1.5 border border-gray-300 rounded-md text-sm"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="date">Sort by Date</option>
+                <option value="name">Sort by Name</option>
+                <option value="type">Sort by Type</option>
+              </select>
+              
+              <button
+                className="px-3 py-1.5 border border-gray-300 rounded-md"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              >
+                {sortOrder === 'asc' ? (
+                  <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+                  </svg>
+                )}
+              </button>
+
+              <button 
+                className={`px-3 py-1.5 rounded text-sm ${selectedAssets.length > 0 ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                onClick={handleDeleteAssets}
+                disabled={selectedAssets.length === 0}
+              >
+                <div className="flex items-center">
+                  <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Delete
                 </div>
-                <div id="grid-view" class="asset-grid"></div>
+              </button>
             </div>
-        </main>
+          </div>
+
+          {/* Asset display area */}
+          <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+            {filteredAssets.length === 0 ? (
+              <div className="text-center py-12">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No assets found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  {searchTerm ? 'Try a different search term' : 'Get started by adding assets to this folder'}
+                </p>
+                <div className="mt-6">
+                  <button
+                    type="button"
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    onClick={() => setShowUploadModal(true)}
+                  >
+                    <svg className="-ml-1 mr-2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                    Upload an asset
+                  </button>
+                </div>
+              </div>
+            ) : viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {filteredAssets.map(asset => (
+                  <div 
+                    key={asset.id}
+                    className={`bg-white rounded-lg shadow-sm border overflow-hidden ${
+                      selectedAssets.includes(asset.id) ? 'ring-2 ring-blue-500 border-blue-500' : 'border-gray-200 hover:shadow-md'
+                    }`}
+                  >
+                    <div className="p-1 flex justify-end">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        checked={selectedAssets.includes(asset.id)}
+                        onChange={() => toggleAssetSelection(asset.id)}
+                      />
+                    </div>
+                    <div className="flex justify-center p-4 bg-gray-50 h-40">
+                      <img 
+                        src={asset.thumbnail} 
+                        alt={asset.name} 
+                        className="h-full object-contain"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-center mb-2">
+                        {renderFileTypeIcon(asset.type, asset.extension)}
+                        <span className="ml-2 uppercase text-xs font-bold text-gray-500">{asset.extension}</span>
+                      </div>
+                      <h3 className="text-sm font-medium text-gray-900 truncate" title={asset.name}>
+                        {asset.name}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-1 truncate" title={asset.description}>
+                        {asset.description}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {asset.tags.slice(0, 2).map(tag => (
+                          <span 
+                            key={tag} 
+                            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {asset.tags.length > 2 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                            +{asset.tags.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="border-t border-gray-200 px-4 py-3 bg-gray-50 flex justify-between items-center">
+                      <div className="text-xs text-gray-500">
+                        {new Date(asset.dateModified).toLocaleDateString()}
+                      </div>
+                      <button 
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                        onClick={() => handleViewAsset(asset)}
+                      >
+                        View
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white shadow overflow-hidden border-b border-gray-200 rounded-lg">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          onChange={() => {
+                            if (selectedAssets.length === filteredAssets.length) {
+                              setSelectedAssets([]);
+                            } else {
+                              setSelectedAssets(filteredAssets.map(asset => asset.id));
+                            }
+                          }}
+                          checked={selectedAssets.length === filteredAssets.length && filteredAssets.length > 0}
+                        />
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Asset
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Type
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tags
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date Modified
+                      </th>
+                      <th scope="col" className="relative px-6 py-3">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredAssets.map((asset) => (
+                      <tr key={asset.id} className={selectedAssets.includes(asset.id) ? 'bg-blue-50' : 'hover:bg-gray-50'}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                            checked={selectedAssets.includes(asset.id)}
+                            onChange={() => toggleAssetSelection(asset.id)}
+                          />
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 rounded bg-gray-100 flex items-center justify-center">
+                              <img 
+                                src={asset.thumbnail} 
+                                alt="" 
+                                className="h-8 w-8 object-contain"
+                              />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{asset.name}</div>
+                              <div className="text-sm text-gray-500 truncate max-w-xs">{asset.description}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            {renderFileTypeIcon(asset.type, asset.extension)}
+                            <span className="ml-2 text-sm text-gray-900">{asset.type}</span>
+                            <span className="ml-1 text-xs text-gray-500">(.{asset.extension})</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-1">
+                            {asset.tags.map(tag => (
+                              <span 
+                                key={tag} 
+                                className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(asset.dateModified).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button 
+                            className="text-blue-600 hover:text-blue-900"
+                            onClick={() => handleViewAsset(asset)}
+                          >
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Status message */}
+      {statusMessage && (
+        <div className={`fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg ${
+          statusMessage.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
+        }`}>
+          {statusMessage.text}
+        </div>
+      )}
+
+      {/* Storage status banner */}
+      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white border border-gray-200 px-4 py-2 rounded-lg shadow-lg z-40">
+        <div className="flex items-center text-sm">
+          <svg className="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <span>Changes are being saved to browser storage</span>
+        </div>
+      </div>
+
+      {/* Upload Asset Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl">
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Upload New Asset</h3>
+            </div>
+            <div className="p-6">
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">Asset Name *</label>
+                    <input
+                      type="text"
+                      id="name"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      value={uploadData.name}
+                      onChange={(e) => setUploadData({...uploadData, name: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="type" className="block text-sm font-medium text-gray-700">Asset Type</label>
+                    <select
+                      id="type"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      value={uploadData.type}
+                      onChange={(e) => setUploadData({...uploadData, type: e.target.value})}
+                    >
+                      {assetTypes.map(type => (
+                        <option key={type.id} value={type.id}>{type.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
+                  <textarea
+                    id="description"
+                    rows={3}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    value={uploadData.description}
+                    onChange={(e) => setUploadData({...uploadData, description: e.target.value})}
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="tags" className="block text-sm font-medium text-gray-700">Tags (comma separated)</label>
+                  <input
+                    type="text"
+                    id="tags"
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    value={uploadData.tags}
+                    onChange={(e) => setUploadData({...uploadData, tags: e.target.value})}
+                    placeholder="menu, logo, food, summer"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="filePath" className="block text-sm font-medium text-gray-700">File Path *</label>
+                  <div className="mt-1 flex rounded-md shadow-sm">
+                    <input
+                      type="text"
+                      id="filePath"
+                      className="flex-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      value={uploadData.filePath}
+                      onChange={(e) => setUploadData({...uploadData, filePath: e.target.value})}
+                      placeholder="/path/to/your/file.ext"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="ml-2 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      onClick={() => {
+                        showStatus('This would open a file browser in a real application', 'info');
+                      }}
+                    >
+                      Browse
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">Enter the full path where the file is stored</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label htmlFor="folder" className="block text-sm font-medium text-gray-700">Main Folder</label>
+                    <select
+                      id="folder"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      value={uploadData.folder}
+                      onChange={(e) => setUploadData({
+                        ...uploadData, 
+                        folder: e.target.value,
+                        subfolder: '',
+                        detailFolder: ''
+                      })}
+                    >
+                      {mainFolders.map(folder => (
+                        <option key={folder.id} value={folder.id}>{folder.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="subfolder" className="block text-sm font-medium text-gray-700">Subfolder</label>
+                    <select
+                      id="subfolder"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      value={uploadData.subfolder}
+                      onChange={(e) => setUploadData({
+                        ...uploadData, 
+                        subfolder: e.target.value,
+                        detailFolder: ''
+                      })}
+                      disabled={!subFolders[uploadData.folder] || subFolders[uploadData.folder].length === 0}
+                    >
+                      <option value="">Select subfolder</option>
+                      {subFolders[uploadData.folder]?.map(subfolder => (
+                        <option key={subfolder.id} value={subfolder.id}>{subfolder.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="detailFolder" className="block text-sm font-medium text-gray-700">Detail Folder</label>
+                    <select
+                      id="detailFolder"
+                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                      value={uploadData.detailFolder}
+                      onChange={(e) => setUploadData({...uploadData, detailFolder: e.target.value})}
+                      disabled={!uploadData.subfolder || !subFolders[uploadData.folder]?.find(sf => sf.id === uploadData.subfolder)?.subfolders?.length}
+                    >
+                      <option value="">Select detail folder</option>
+                      {uploadData.subfolder && subFolders[uploadData.folder]?.find(sf => sf.id === uploadData.subfolder)?.subfolders?.map(detailFolder => (
+                        <option key={detailFolder} value={detailFolder}>{detailFolder}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {statusMessage && (
+                  <div className={`mt-4 px-4 py-3 rounded-md ${
+                    statusMessage.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 
+                    statusMessage.type === 'info' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                    'bg-green-50 text-green-700 border border-green-200'
+                  }`}>
+                    {statusMessage.text}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+              <button
+                type="button"
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                onClick={() => setShowUploadModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                onClick={handleUploadAsset}
+              >
+                Upload Asset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Asset Detail Modal */}
+      {showAssetDetailModal && currentAsset && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">Asset Details</h3>
+              <button 
+                className="text-gray-400 hover:text-gray-500"
+                onClick={() => setShowAssetDetailModal(false)}
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center h-80">
+                    <img 
+                      src={currentAsset.thumbnail} 
+                      alt={currentAsset.name} 
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                  
+                  <div className="mt-6">
+                    <h3 className="text-sm font-medium text-gray-700">Asset Path Information</h3>
+                    <p className="mt-2 text-sm text-gray-600">Path: <span className="font-mono text-gray-800">{currentAsset.path}</span></p>
+                    
+                    <div className="mt-4 bg-gray-50 p-3 rounded-md border border-gray-200">
+                      <h4 className="text-xs font-medium text-gray-700 mb-1">Full path for reference:</h4>
+                      <div className="font-mono text-xs text-gray-600 break-all">
+                        {currentAsset.path}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-start mb-4">
+                    <div className="mr-3 mt-1">
+                      {renderFileTypeIcon(currentAsset.type, currentAsset.extension)}
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900">{currentAsset.name}</h2>
+                      <p className="text-sm text-gray-500">
+                        {currentAsset.type.charAt(0).toUpperCase() + currentAsset.type.slice(1)} • .{currentAsset.extension} • {currentAsset.size}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700">Description</h3>
+                      <p className="mt-1 text-sm text-gray-600">{currentAsset.description || 'No description provided'}</p>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700">Tags</h3>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {currentAsset.tags && currentAsset.tags.map(tag => (
+                          <span 
+                            key={tag} 
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {(!currentAsset.tags || currentAsset.tags.length === 0) && (
+                          <span className="text-sm text-gray-500">No tags</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-700">Created</h3>
+                        <p className="mt-1 text-sm text-gray-600">{new Date(currentAsset.dateCreated).toLocaleDateString()}</p>
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-700">Modified</h3>
+                        <p className="mt-1 text-sm text-gray-600">{new Date(currentAsset.dateModified).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h3 className="text-sm font-medium text-gray-700">Created By</h3>
+                        <p className="mt-1 text-sm text-gray-600">{currentAsset.createdBy}</p>
+                      </div>
+                      {currentAsset.dimensions && (
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-700">Dimensions</h3>
+                          <p className="mt-1 text-sm text-gray-600">{currentAsset.dimensions}</p>
+                        </div>
+                      )}
+                      {currentAsset.duration && (
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-700">Duration</h3>
+                          <p className="mt-1 text-sm text-gray-600">{currentAsset.duration}</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-sm font-medium text-gray-700">Location</h3>
+                      <div className="mt-1 flex items-center space-x-2 text-sm text-gray-600">
+                        <span>{mainFolders.find(f => f.id === currentAsset.folder)?.name || '-'}</span>
+                        <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                        <span>{subFolders[currentAsset.folder]?.find(sf => sf.id === currentAsset.subfolder)?.name || '-'}</span>
+                        {currentAsset.detailFolder && (
+                          <>
+                            <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                            <span>{currentAsset.detailFolder}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-gray-200">
+              <div className="flex justify-between">
+                <div>
+                  <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <svg className="-ml-1 mr-2 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    Edit
+                  </button>
+                </div>
+                <div className="flex space-x-3">
+                  <button className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50">
+                    <svg className="h-4 w-4 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                    </svg>
+                    Share
+                  </button>
+                  <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+};
 
-    <div id="upload-modal" class="modal"><div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg"><h3 class="text-lg font-medium mb-4">Upload New Asset</h3><input type="text" id="asset-name" placeholder="Asset Name" class="w-full p-2 border rounded mb-4"><div class="flex justify-end gap-2"><button id="cancel-upload-btn" class="px-4 py-2 bg-gray-200 rounded">Cancel</button><button id="confirm-upload-btn" class="px-4 py-2 bg-blue-600 text-white rounded">Confirm</button></div></div></div>
-    <div id="status-message" class="fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white hidden"></div>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const config = { storageKey: 'restaurantDamAssets' };
-    const mainFolders = [{ id: 'brand', name: 'Brand Assets' }, { id: 'menus', name: 'Menus' }, { id: 'marketing', name: 'Marketing' }];
-    let assets = [];
-    let state = { activeFolder: null, selectedAssets: [] };
-
-    const elements = {
-        mainFoldersList: document.getElementById('main-folders'),
-        currentFolderPath: document.getElementById('current-folder-path'),
-        gridView: document.getElementById('grid-view'),
-        emptyState: document.getElementById('empty-state'),
-        deleteBtn: document.getElementById('delete-btn'),
-        uploadBtn: document.getElementById('upload-btn'),
-        uploadModal: document.getElementById('upload-modal'),
-        assetNameInput: document.getElementById('asset-name'),
-        confirmUploadBtn: document.getElementById('confirm-upload-btn'),
-        cancelUploadBtn: document.getElementById('cancel-upload-btn'),
-        statusMessage: document.getElementById('status-message'),
-        mobileMenuBtn: document.getElementById('mobile-menu-btn'),
-        body: document.body
-    };
-
-    function saveAssets() {
-        try {
-            localStorage.setItem(config.storageKey, JSON.stringify(assets));
-        } catch (e) {
-            console.error("Error saving assets:", e);
-        }
-    }
-
-    function loadAssets() {
-        try {
-            const storedAssets = localStorage.getItem(config.storageKey);
-            assets = storedAssets ? JSON.parse(storedAssets) : [];
-        } catch (e) {
-            console.error("Error loading assets:", e);
-            assets = [];
-        }
-    }
-
-    function showStatus(message, type = 'success') {
-        elements.statusMessage.textContent = message;
-        elements.statusMessage.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white ${type === 'error' ? 'bg-red-600' : 'bg-green-600'}`;
-        elements.statusMessage.classList.remove('hidden');
-        setTimeout(() => elements.statusMessage.classList.add('hidden'), 3000);
-    }
-
-    function renderMainFolders() {
-        elements.mainFoldersList.innerHTML = mainFolders.map(f => `
-            <li><button data-folder-id="${f.id}" class="w-full text-left p-2 rounded ${state.activeFolder === f.id ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}">${f.name}</button></li>
-        `).join('');
-    }
-
-    function renderAssets() {
-        const filtered = state.activeFolder ? assets.filter(a => a.folder === state.activeFolder) : assets;
-        elements.emptyState.classList.toggle('hidden', filtered.length > 0);
-        elements.gridView.classList.toggle('hidden', filtered.length === 0);
-        elements.gridView.innerHTML = filtered.map(a => `
-            <div class="bg-white rounded-lg shadow-sm border overflow-hidden cursor-pointer ${state.selectedAssets.includes(a.id) ? 'ring-2 ring-blue-500' : ''}" data-asset-id="${a.id}">
-                <div class="h-32 bg-gray-200 flex items-center justify-center text-gray-500">${a.type === 'image' ? `<img src="${a.thumbnail}" class="h-full w-full object-cover">` : '📄'}</div>
-                <div class="p-3"><p class="font-medium text-sm truncate">${a.name}</p></div>
-            </div>
-        `).join('');
-        elements.deleteBtn.disabled = state.selectedAssets.length === 0;
-    }
-
-    function updateView() {
-        renderMainFolders();
-        renderAssets();
-        const activeFolderName = state.activeFolder ? mainFolders.find(f => f.id === state.activeFolder).name : 'All Assets';
-        elements.currentFolderPath.textContent = activeFolderName;
-    }
-
-    function handleFolderClick(e) {
-        if (e.target.matches('[data-folder-id]')) {
-            const folderId = e.target.dataset.folderId;
-            state.activeFolder = state.activeFolder === folderId ? null : folderId;
-            state.selectedAssets = [];
-            updateView();
-        }
-    }
-
-    function handleAssetClick(e) {
-        if (e.target.closest('[data-asset-id]')) {
-            const assetId = e.target.closest('[data-asset-id]').dataset.assetId;
-            const index = state.selectedAssets.indexOf(assetId);
-            if (index > -1) {
-                state.selectedAssets.splice(index, 1);
-            } else {
-                state.selectedAssets.push(assetId);
-            }
-            renderAssets();
-        }
-    }
-
-    function deleteSelectedAssets() {
-        assets = assets.filter(a => !state.selectedAssets.includes(a.id));
-        showStatus(`${state.selectedAssets.length} asset(s) deleted.`, 'success');
-        state.selectedAssets = [];
-        saveAssets();
-        updateView();
-    }
-
-    function uploadAsset() {
-        const name = elements.assetNameInput.value.trim();
-        if (!name) return;
-        if (!state.activeFolder) {
-            showStatus("Please select a folder first.", "error");
-            return;
-        }
-        const newAsset = {
-            id: Date.now().toString(),
-            name: name,
-            folder: state.activeFolder,
-            type: 'image',
-            thumbnail: `https://via.placeholder.com/300/CCCCCC/FFFFFF?text=${name.substring(0,3)}`
-        };
-        assets.push(newAsset);
-        saveAssets();
-        updateView();
-        elements.uploadModal.classList.remove('active');
-        elements.assetNameInput.value = '';
-    }
-
-    elements.mainFoldersList.addEventListener('click', handleFolderClick);
-    elements.gridView.addEventListener('click', handleAssetClick);
-    elements.deleteBtn.addEventListener('click', deleteSelectedAssets);
-    elements.uploadBtn.addEventListener('click', () => elements.uploadModal.classList.add('active'));
-    elements.cancelUploadBtn.addEventListener('click', () => elements.uploadModal.classList.remove('active'));
-    elements.confirmUploadBtn.addEventListener('click', uploadAsset);
-    elements.mobileMenuBtn.addEventListener('click', () => elements.body.classList.toggle('mobile-menu-active'));
-
-    loadAssets();
-    updateView();
-});
-</script>
-</body>
-</html>
+export default RestaurantDAM;
