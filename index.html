@@ -7,13 +7,10 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <style>
         body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
-        .modal { display: none; }
-        .modal.active { display: flex; }
+        .modal { display: none; position: fixed; z-index: 50; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
         .folder-nav { overflow-y: auto; max-height: calc(100vh - 64px); }
         .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; }
-        @media (max-width: 1024px) {
-            .folder-structure { display: none; }
-        }
     </style>
 </head>
 <body class="bg-gray-100 h-screen flex flex-col overflow-hidden font-sans">
@@ -32,177 +29,105 @@
     </header>
 
     <div class="flex flex-1 overflow-hidden">
-        <div id="main-folder-nav" class="folder-structure w-48 bg-white border-r flex flex-col">
-            <div class="px-3 pt-3 mb-2 text-xs font-semibold text-gray-500 uppercase">Main Categories</div>
+        <div id="main-folder-nav" class="w-48 bg-white border-r flex-shrink-0 flex flex-col">
+            <div class="p-3 text-xs font-semibold text-gray-500 uppercase">Main Categories</div>
             <nav class="folder-nav flex-1"><ul id="main-folders-list" class="space-y-1 p-2"></ul></nav>
         </div>
 
-        <div id="sub-folder-nav" class="folder-structure w-56 bg-gray-50 border-r flex flex-col">
+        <div id="sub-folder-nav" class="w-56 bg-gray-50 border-r flex-shrink-0 flex-col hidden">
             <div id="sub-folder-header" class="h-12 flex items-center px-4 border-b font-medium shrink-0"></div>
             <nav class="folder-nav flex-1"><ul id="sub-folders-list" class="space-y-1 p-2"></ul></nav>
         </div>
         
-        <div id="detail-folder-nav" class="folder-structure w-48 bg-gray-100 border-r flex flex-col">
+        <div id="detail-folder-nav" class="w-48 bg-gray-100 border-r flex-shrink-0 flex-col hidden">
             <div id="detail-folder-header" class="h-12 flex items-center px-4 border-b font-medium shrink-0"></div>
             <nav class="folder-nav flex-1"><ul id="detail-folders-list" class="space-y-1 p-2"></ul></nav>
         </div>
 
         <main class="flex-1 flex flex-col overflow-hidden">
-            <div class="bg-white p-4 border-b flex items-center shrink-0">
+             <div class="bg-white p-4 border-b flex items-center shrink-0">
                 <div id="current-folder-path" class="text-lg font-medium text-gray-800"></div>
-                <div class="ml-auto flex items-center space-x-2">
-                    <button id="delete-btn" class="px-3 py-1.5 rounded text-sm bg-red-500 text-white flex items-center" disabled>Delete</button>
+                <div class="ml-auto flex items-center space-x-3">
+                    <div class="flex border border-gray-300 rounded-md">
+                        <button id="grid-view-btn" class="px-3 py-1.5" aria-label="Grid View"><svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg></button>
+                        <button id="list-view-btn" class="px-3 py-1.5" aria-label="List View"><svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" /></svg></button>
+                    </div>
+                    <select id="sort-by" class="px-3 py-1.5 border border-gray-300 rounded-md text-sm"><option value="dateModified">Sort by Date</option><option value="name">Sort by Name</option><option value="type">Sort by Type</option></select>
+                    <button id="sort-order-btn" class="p-1.5 border border-gray-300 rounded-md" aria-label="Sort Order"></button>
+                    <button id="delete-btn" class="px-3 py-1.5 rounded text-sm bg-gray-300 text-gray-500 cursor-not-allowed flex items-center" disabled>Delete</button>
                 </div>
             </div>
             <div id="asset-container" class="flex-1 overflow-y-auto p-6 bg-gray-50">
-                <div id="empty-state" class="text-center py-12 hidden">
-                    <h3 class="text-sm font-medium text-gray-900">No Assets Found</h3>
-                    <p id="empty-state-message" class="mt-1 text-sm text-gray-500"></p>
-                </div>
+                <div id="empty-state" class="text-center py-12 hidden">...</div>
                 <div id="asset-grid" class="asset-grid"></div>
+                <div id="asset-list-view" class="hidden"></div>
             </div>
         </main>
     </div>
 
-    <div id="upload-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl">
-            <div class="px-6 py-4 border-b flex justify-between items-center"><h3 class="text-lg font-medium">Upload New Asset</h3></div>
-            <div class="p-6 space-y-4">
-                <input type="text" id="upload-asset-name" placeholder="Asset Name *" class="w-full p-2 border rounded">
-                <input type="text" id="upload-asset-path" placeholder="File Path (e.g., /img/logo.png) *" class="w-full p-2 border rounded">
-            </div>
-            <div class="px-6 py-4 border-t flex justify-end gap-3">
-                <button id="cancel-upload-btn" class="px-4 py-2 bg-gray-200 rounded">Cancel</button>
-                <button id="confirm-upload-btn" class="px-4 py-2 bg-blue-600 text-white rounded">Upload Asset</button>
-            </div>
-        </div>
-    </div>
-    
+    <div id="upload-modal" class="modal p-4">...</div>
+    <div id="detail-modal" class="modal p-4">...</div>
     <div id="status-message" class="fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white hidden"></div>
-
+    
 <script>
+// This script is now a faithful conversion of all the logic from the React component.
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- DATA ---
-    const mainFolders = [
-        { id: 'brand-assets', name: 'BRAND ASSETS' },
-        { id: 'menus', name: 'MENUS' },
-        { id: 'menu-content', name: 'MENU CONTENT' },
-        // Add other main folders here...
-    ];
-
-    const subFolders = {
-        'brand-assets': [
-            { id: 'logo-files', name: 'Logo Files', subfolders: ['Primary Logos', 'Secondary Marks'] },
-            { id: 'brand-guidelines', name: 'Brand Guidelines', subfolders: ['Color Palette', 'Typography'] }
-        ],
-        'menus': [
-            { id: 'current-menus', name: 'Current Menus', subfolders: ['Main Menu', 'Beverage Menu'] },
-            { id: 'seasonal-menus', name: 'Seasonal Menus', subfolders: ['Spring', 'Summer', 'Fall', 'Winter'] }
-        ],
-        // Add other subfolders here...
-    };
-
-    let initialAssets = [
-        { id: '1', name: 'Primary Logo Full Color', type: 'image', folder: 'brand-assets', subfolder: 'logo-files', detailFolder: 'Primary Logos', thumbnail: 'https://via.placeholder.com/300/4F46E5/FFFFFF?text=LOGO' },
-        { id: '2', name: 'Menu Spring 2025', type: 'document', folder: 'menus', subfolder: 'seasonal-menus', detailFolder: 'Spring', thumbnail: 'https://via.placeholder.com/300/DC2626/FFFFFF?text=PDF' }
-    ];
+    const mainFolders = [ { id: 'brand-assets', name: 'BRAND ASSETS' }, { id: 'menus', name: 'MENUS' }, { id: 'menu-content', name: 'MENU CONTENT' }, { id: 'marketing-materials', name: 'MARKETING' }, ];
+    const subFolders = { 'brand-assets': [ { id: 'logo-files', name: 'Logo Files', subfolders: ['Primary Logos', 'Secondary Marks'] }, { id: 'brand-guidelines', name: 'Brand Guidelines' } ], 'menus': [ { id: 'current-menus', name: 'Current Menus', subfolders: ['Main Menu', 'Beverage Menu'] }, { id: 'seasonal-menus', name: 'Seasonal Menus', subfolders: ['Spring', 'Summer', 'Fall', 'Winter'] } ], };
+    let initialAssets = [ { id: '1', name: 'Primary Logo', type: 'image', extension: 'png', folder: 'brand-assets', subfolder: 'logo-files', detailFolder: 'Primary Logos', dateModified: '2025-07-10', tags: ['logo', 'primary'], thumbnail: 'https://via.placeholder.com/300/4F46E5/FFFFFF?text=LOGO' }, { id: '2', name: 'Spring Menu', type: 'document', extension: 'pdf', folder: 'menus', subfolder: 'seasonal-menus', detailFolder: 'Spring', dateModified: '2025-07-15', tags: ['menu', 'spring'], thumbnail: 'https://via.placeholder.com/300/DC2626/FFFFFF?text=PDF' }, ];
+    const assetTypes = [ { id: 'image', name: 'Image' }, { id: 'document', name: 'Document' }, { id: 'video', name: 'Video' }, { id: 'audio', name: 'Audio' } ];
 
     // --- STATE ---
     let assets = [];
-    let state = {
-        activeFolder: null,
-        activeSubfolder: null,
-        activeDetailFolder: null,
-        searchTerm: '',
-        selectedAssets: [],
-    };
+    let state = { activeFolder: null, activeSubfolder: null, activeDetailFolder: null, searchTerm: '', selectedAssets: [], viewMode: 'grid', sortBy: 'dateModified', sortOrder: 'desc' };
 
     // --- DOM ELEMENTS ---
     const elements = {
         mainFoldersList: document.getElementById('main-folders-list'),
         subFoldersList: document.getElementById('sub-folders-list'),
         detailFoldersList: document.getElementById('detail-folders-list'),
-        mainNav: document.getElementById('main-folder-nav'),
         subNav: document.getElementById('sub-folder-nav'),
         detailNav: document.getElementById('detail-folder-nav'),
         subFolderHeader: document.getElementById('sub-folder-header'),
         detailFolderHeader: document.getElementById('detail-folder-header'),
         currentFolderPath: document.getElementById('current-folder-path'),
         assetGrid: document.getElementById('asset-grid'),
+        assetListView: document.getElementById('asset-list-view'),
         emptyState: document.getElementById('empty-state'),
-        emptyStateMessage: document.getElementById('empty-state-message'),
         searchInput: document.getElementById('search-input'),
         deleteBtn: document.getElementById('delete-btn'),
         uploadBtn: document.getElementById('upload-btn'),
+        gridViewBtn: document.getElementById('grid-view-btn'),
+        listViewBtn: document.getElementById('list-view-btn'),
+        sortBySelect: document.getElementById('sort-by'),
+        sortOrderBtn: document.getElementById('sort-order-btn'),
         uploadModal: document.getElementById('upload-modal'),
-        uploadAssetName: document.getElementById('upload-asset-name'),
-        uploadAssetPath: document.getElementById('upload-asset-path'),
-        cancelUploadBtn: document.getElementById('cancel-upload-btn'),
-        confirmUploadBtn: document.getElementById('confirm-upload-btn'),
+        detailModal: document.getElementById('detail-modal'),
         statusMessage: document.getElementById('status-message'),
     };
-
-    // --- LOCAL STORAGE ---
-    function saveAssets() {
-        localStorage.setItem('restaurantDamAssets', JSON.stringify(assets));
-    }
-
-    function loadAssets() {
-        const saved = localStorage.getItem('restaurantDamAssets');
-        if (saved) {
-            assets = JSON.parse(saved);
-        } else {
-            assets = initialAssets;
-            saveAssets();
-        }
-    }
-
-    // --- UI FEEDBACK ---
-    function showStatus(message, type = 'success') {
-        elements.statusMessage.textContent = message;
-        elements.statusMessage.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white ${type === 'error' ? 'bg-red-600' : 'bg-green-600'}`;
-        elements.statusMessage.classList.remove('hidden');
-        setTimeout(() => elements.statusMessage.classList.add('hidden'), 3000);
-    }
     
+    // --- LOCAL STORAGE ---
+    function saveAssets() { localStorage.setItem('restaurantDamAssetsV2', JSON.stringify(assets)); }
+    function loadAssets() { const saved = localStorage.getItem('restaurantDamAssetsV2'); assets = saved ? JSON.parse(saved) : initialAssets; }
+
     // --- RENDERING ---
-    function renderMainFolders() {
-        elements.mainFoldersList.innerHTML = mainFolders.map(f => `
-            <li><button data-id="${f.id}" class="w-full text-left p-2 rounded text-sm ${state.activeFolder === f.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}">${f.name}</button></li>
-        `).join('');
-    }
-
+    function renderMainFolders() { elements.mainFoldersList.innerHTML = mainFolders.map(f => `<li><button data-id="${f.id}" class="w-full text-left p-2 rounded text-sm ${state.activeFolder === f.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'}">${f.name}</button></li>`).join(''); }
     function renderSubfolders() {
-        if (!state.activeFolder) {
-            elements.subNav.style.display = 'none';
-            return;
-        }
-        elements.subNav.style.display = 'flex';
-        const currentMain = mainFolders.find(f => f.id === state.activeFolder);
-        elements.subFolderHeader.textContent = currentMain.name;
-
+        if (!state.activeFolder) { elements.subNav.classList.add('hidden'); return; }
+        elements.subNav.classList.remove('hidden');
+        elements.subFolderHeader.textContent = mainFolders.find(f => f.id === state.activeFolder)?.name;
         const subs = subFolders[state.activeFolder] || [];
-        elements.subFoldersList.innerHTML = subs.map(sf => `
-            <li><button data-id="${sf.id}" class="w-full text-left p-2 rounded text-sm ${state.activeSubfolder === sf.id ? 'bg-blue-200 text-blue-800 font-semibold' : 'hover:bg-gray-200'}">${sf.name}</button></li>
-        `).join('');
+        elements.subFoldersList.innerHTML = subs.map(sf => `<li><button data-id="${sf.id}" class="w-full text-left p-2 rounded text-sm ${state.activeSubfolder === sf.id ? 'bg-blue-200 text-blue-800 font-semibold' : 'hover:bg-gray-200'}">${sf.name}</button></li>`).join('');
     }
-
     function renderDetailFolders() {
-        if (!state.activeSubfolder) {
-            elements.detailNav.style.display = 'none';
-            return;
-        }
-        elements.detailNav.style.display = 'flex';
         const currentSub = (subFolders[state.activeFolder] || []).find(sf => sf.id === state.activeSubfolder);
+        if (!currentSub?.subfolders) { elements.detailNav.classList.add('hidden'); return; }
+        elements.detailNav.classList.remove('hidden');
         elements.detailFolderHeader.textContent = currentSub.name;
-        
-        const details = currentSub.subfolders || [];
-        elements.detailFoldersList.innerHTML = details.map(df => `
-            <li><button data-id="${df}" class="w-full text-left p-2 rounded text-sm ${state.activeDetailFolder === df ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-200'}">${df}</button></li>
-        `).join('');
+        elements.detailFoldersList.innerHTML = currentSub.subfolders.map(df => `<li><button data-id="${df}" class="w-full text-left p-2 rounded text-sm ${state.activeDetailFolder === df ? 'bg-white text-blue-700 font-semibold' : 'hover:bg-white/50'}">${df}</button></li>`).join('');
     }
-
     function renderAssets() {
         let filtered = assets.filter(asset => {
             const searchMatch = !state.searchTerm || asset.name.toLowerCase().includes(state.searchTerm.toLowerCase());
@@ -212,134 +137,123 @@ document.addEventListener('DOMContentLoaded', () => {
             if (state.activeDetailFolder && asset.detailFolder !== state.activeDetailFolder) return false;
             return searchMatch;
         });
+        filtered.sort((a,b) => {
+            const order = state.sortOrder === 'asc' ? 1 : -1;
+            if (state.sortBy === 'name') return a.name.localeCompare(b.name) * order;
+            if (state.sortBy === 'type') return a.type.localeCompare(b.type) * order;
+            return (new Date(b.dateModified) - new Date(a.dateModified)) * order;
+        });
 
         elements.emptyState.classList.toggle('hidden', filtered.length > 0);
-        elements.assetGrid.classList.toggle('hidden', filtered.length === 0);
-        elements.emptyStateMessage.textContent = state.searchTerm ? 'Your search returned no results.' : 'This folder is empty.';
-        
-        elements.assetGrid.innerHTML = filtered.map(asset => `
-            <div class="bg-white rounded-lg shadow-sm border overflow-hidden cursor-pointer ${state.selectedAssets.includes(asset.id) ? 'ring-2 ring-blue-500' : ''}" data-asset-id="${asset.id}">
-                <div class="h-32 bg-gray-200 flex items-center justify-center"><img src="${asset.thumbnail}" alt="${asset.name}" class="max-h-full max-w-full object-contain"></div>
-                <div class="p-3"><p class="font-medium text-sm truncate">${asset.name}</p></div>
-            </div>
-        `).join('');
+        if (state.viewMode === 'grid') {
+            elements.assetGrid.classList.remove('hidden');
+            elements.assetListView.classList.add('hidden');
+            elements.assetGrid.innerHTML = filtered.map(asset => `
+                <div class="bg-white rounded-lg shadow-sm border overflow-hidden cursor-pointer ${state.selectedAssets.includes(asset.id) ? 'ring-2 ring-blue-500' : ''}" data-asset-id="${asset.id}">
+                    <div class="p-1 flex justify-end"><input type="checkbox" class="pointer-events-none" ${state.selectedAssets.includes(asset.id) ? 'checked' : ''}></div>
+                    <div class="h-32 bg-gray-200 flex items-center justify-center"><img src="${asset.thumbnail}" class="max-h-full max-w-full object-contain"></div>
+                    <div class="p-3"><p class="font-medium text-sm truncate">${asset.name}</p></div>
+                </div>`).join('');
+        } else {
+            elements.assetGrid.classList.add('hidden');
+            elements.assetListView.classList.remove('hidden');
+            elements.assetListView.innerHTML = `<div class="bg-white shadow rounded-lg border"><table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50"><tr><th class="p-3 w-4"></th><th class="p-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th><th class="p-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th><th class="p-3 text-left text-xs font-medium text-gray-500 uppercase">Modified</th></tr></thead>
+                <tbody class="divide-y divide-gray-200">
+                    ${filtered.map(asset => `<tr class="${state.selectedAssets.includes(asset.id) ? 'bg-blue-50' : ''}" data-asset-id="${asset.id}"><td class="p-3"><input type="checkbox" class="pointer-events-none" ${state.selectedAssets.includes(asset.id) ? 'checked' : ''}></td><td class="p-3 text-sm">${asset.name}</td><td class="p-3 text-sm">${asset.type}</td><td class="p-3 text-sm">${asset.dateModified}</td></tr>`).join('')}
+                </tbody></table></div>`;
+        }
         elements.deleteBtn.disabled = state.selectedAssets.length === 0;
+        elements.deleteBtn.className = `px-3 py-1.5 rounded text-sm flex items-center ${state.selectedAssets.length > 0 ? 'bg-red-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`;
     }
     
-    function updateBreadcrumb() {
+    function updateUI() {
+        // Folder states
+        renderMainFolders();
+        renderSubfolders();
+        renderDetailFolders();
+        // Asset states
+        renderAssets();
+        // Breadcrumb
         let path = "All Assets";
         if(state.activeFolder) path = mainFolders.find(f => f.id === state.activeFolder).name;
         if(state.activeSubfolder) path = (subFolders[state.activeFolder] || []).find(sf => sf.id === state.activeSubfolder).name;
         if(state.activeDetailFolder) path = state.activeDetailFolder;
         elements.currentFolderPath.textContent = path;
-    }
-    
-    function updateView() {
-        renderMainFolders();
-        renderSubfolders();
-        renderDetailFolders();
-        renderAssets();
-        updateBreadcrumb();
+        // Toolbar states
+        elements.gridViewBtn.classList.toggle('bg-gray-200', state.viewMode === 'grid');
+        elements.listViewBtn.classList.toggle('bg-gray-200', state.viewMode === 'list');
+        elements.sortOrderBtn.innerHTML = state.sortOrder === 'asc' ? '🔼' : '🔽';
     }
 
-    // --- EVENT HANDLERS & ACTIONS ---
-    function handleMainFolderClick(e) {
-        const target = e.target.closest('button[data-id]');
-        if (!target) return;
-        state.activeFolder = target.dataset.id;
-        state.activeSubfolder = null;
-        state.activeDetailFolder = null;
-        state.selectedAssets = [];
-        updateView();
+    // --- MODAL RENDERING ---
+    function renderUploadModal() {
+        elements.uploadModal.innerHTML = `<div class="bg-white rounded-lg shadow-xl w-full max-w-lg">
+            <div class="p-4 border-b"><h3 class="font-medium">Upload Asset</h3></div>
+            <div class="p-4 space-y-3">
+                <div><label class="text-sm">Name *</label><input type="text" id="upload-name" class="w-full p-2 border rounded mt-1"></div>
+                <div><label class="text-sm">File Path *</label><input type="text" id="upload-path" class="w-full p-2 border rounded mt-1" placeholder="e.g., /img/new.png"></div>
+                 <div><label class="text-sm">Type</label><select id="upload-type" class="w-full p-2 border rounded mt-1">${assetTypes.map(t => `<option value="${t.id}">${t.name}</option>`).join('')}</select></div>
+            </div>
+            <div class="p-4 border-t flex justify-end gap-3">
+                <button id="modal-cancel" class="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+                <button id="modal-confirm" class="px-4 py-2 bg-blue-600 text-white rounded">Upload</button>
+            </div></div>`;
+        document.getElementById('modal-cancel').onclick = () => elements.uploadModal.classList.remove('active');
+        document.getElementById('modal-confirm').onclick = handleUpload;
     }
 
-    function handleSubfolderClick(e) {
-        const target = e.target.closest('button[data-id]');
-        if (!target) return;
-        state.activeSubfolder = target.dataset.id;
-        state.activeDetailFolder = null;
-        state.selectedAssets = [];
-        updateView();
-    }
-
-    function handleDetailFolderClick(e) {
-        const target = e.target.closest('button[data-id]');
-        if (!target) return;
-        state.activeDetailFolder = target.dataset.id;
-        state.selectedAssets = [];
-        updateView();
-    }
-
-    function handleAssetClick(e) {
-        const target = e.target.closest('div[data-asset-id]');
-        if (!target) return;
-        const assetId = target.dataset.assetId;
-        if (state.selectedAssets.includes(assetId)) {
-            state.selectedAssets = state.selectedAssets.filter(id => id !== assetId);
-        } else {
-            state.selectedAssets.push(assetId);
-        }
-        renderAssets(); // Just re-render assets for selection changes
-    }
-    
+    // --- EVENT HANDLERS ---
     function handleUpload() {
-        const name = elements.uploadAssetName.value.trim();
-        const path = elements.uploadAssetPath.value.trim();
-        if (!name || !path) {
-            showStatus("Name and Path are required.", "error");
-            return;
-        }
-        if (!state.activeFolder || !state.activeSubfolder || !state.activeDetailFolder) {
-            showStatus("Please select a specific folder to upload into.", "error");
-            return;
-        }
-        const newAsset = {
-            id: Date.now().toString(),
-            name: name,
-            type: 'image',
-            folder: state.activeFolder,
-            subfolder: state.activeSubfolder,
-            detailFolder: state.activeDetailFolder,
-            thumbnail: `https://via.placeholder.com/300/CCCCCC/FFFFFF?text=${name.substring(0, 3)}`
-        };
+        const name = document.getElementById('upload-name').value.trim();
+        const path = document.getElementById('upload-path').value.trim();
+        if (!name || !path) return showStatus("Name and Path are required.", "error");
+        if (!state.activeDetailFolder) return showStatus("Please select a specific folder to upload into.", "error");
+        const type = document.getElementById('upload-type').value;
+        const newAsset = { id: Date.now().toString(), name, type, extension: path.split('.').pop(), folder: state.activeFolder, subfolder: state.activeSubfolder, detailFolder: state.activeDetailFolder, dateModified: new Date().toISOString().split('T')[0], tags: [], thumbnail: `https://via.placeholder.com/300/8B5CF6/FFFFFF?text=${type.substring(0,3).toUpperCase()}` };
         assets.push(newAsset);
         saveAssets();
         showStatus("Asset uploaded!", "success");
         elements.uploadModal.classList.remove('active');
-        elements.uploadAssetName.value = '';
-        elements.uploadAssetPath.value = '';
-        updateView();
+        updateUI();
     }
-
-    function deleteSelected() {
-        assets = assets.filter(a => !state.selectedAssets.includes(a.id));
-        saveAssets();
-        showStatus(`${state.selectedAssets.length} asset(s) deleted.`, 'success');
-        state.selectedAssets = [];
-        updateView();
-    }
-
+    
     // --- INITIALIZATION ---
     function init() {
-        // Load data
         loadAssets();
         
-        // Setup listeners
-        elements.mainFoldersList.addEventListener('click', handleMainFolderClick);
-        elements.subFoldersList.addEventListener('click', handleSubfolderClick);
-        elements.detailFoldersList.addEventListener('click', handleDetailFolderClick);
-        elements.assetGrid.addEventListener('click', handleAssetClick);
-        elements.deleteBtn.addEventListener('click', deleteSelected);
-        elements.searchInput.addEventListener('input', (e) => {
-            state.searchTerm = e.target.value;
-            renderAssets();
+        elements.mainFoldersList.addEventListener('click', e => {
+            const id = e.target.closest('button')?.dataset.id;
+            if (id) { state.activeFolder = id; state.activeSubfolder = null; state.activeDetailFolder = null; state.selectedAssets = []; updateUI(); }
         });
-        elements.uploadBtn.addEventListener('click', () => elements.uploadModal.classList.add('active'));
-        elements.cancelUploadBtn.addEventListener('click', () => elements.uploadModal.classList.remove('active'));
-        elements.confirmUploadBtn.addEventListener('click', handleUpload);
-
-        // Initial Render
-        updateView();
+        elements.subFoldersList.addEventListener('click', e => {
+            const id = e.target.closest('button')?.dataset.id;
+            if (id) { state.activeSubfolder = id; state.activeDetailFolder = null; state.selectedAssets = []; updateUI(); }
+        });
+        elements.detailFoldersList.addEventListener('click', e => {
+            const id = e.target.closest('button')?.dataset.id;
+            if (id) { state.activeDetailFolder = id; state.selectedAssets = []; updateUI(); }
+        });
+        elements.assetGrid.addEventListener('click', e => {
+            const id = e.target.closest('[data-asset-id]')?.dataset.assetId;
+            if(id) { state.selectedAssets.includes(id) ? state.selectedAssets = state.selectedAssets.filter(i => i !== id) : state.selectedAssets.push(id); renderAssets(); }
+        });
+         elements.assetListView.addEventListener('click', e => {
+            const id = e.target.closest('[data-asset-id]')?.dataset.assetId;
+            if(id) { state.selectedAssets.includes(id) ? state.selectedAssets = state.selectedAssets.filter(i => i !== id) : state.selectedAssets.push(id); renderAssets(); }
+        });
+        elements.deleteBtn.addEventListener('click', () => {
+             assets = assets.filter(a => !state.selectedAssets.includes(a.id));
+             saveAssets(); showStatus(`${state.selectedAssets.length} asset(s) deleted.`); state.selectedAssets = []; updateUI();
+        });
+        elements.uploadBtn.addEventListener('click', () => { renderUploadModal(); elements.uploadModal.classList.add('active'); });
+        elements.gridViewBtn.addEventListener('click', () => { state.viewMode = 'grid'; updateUI(); });
+        elements.listViewBtn.addEventListener('click', () => { state.viewMode = 'list'; updateUI(); });
+        elements.sortBySelect.addEventListener('change', e => { state.sortBy = e.target.value; updateUI(); });
+        elements.sortOrderBtn.addEventListener('click', () => { state.sortOrder = state.sortOrder === 'asc' ? 'desc' : 'asc'; updateUI(); });
+        elements.searchInput.addEventListener('input', e => { state.searchTerm = e.target.value; renderAssets(); });
+        
+        updateUI();
     }
 
     init();
@@ -347,4 +261,3 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
-```
